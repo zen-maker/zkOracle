@@ -1,0 +1,16 @@
+1,1,2,main.out
+2,2,2,main.inputValue
+3,-1,2,main.in
+4,-1,1,main.isLessThan.out
+5,-1,1,main.isLessThan.in[0]
+6,-1,1,main.isLessThan.in[1]
+7,3,0,main.isLessThan.n2b.out[0]
+8,4,0,main.isLessThan.n2b.out[1]
+9,5,0,main.isLessThan.n2b.out[2]
+10,6,0,main.isLessThan.n2b.out[3]
+11,7,0,main.isLessThan.n2b.out[4]
+12,8,0,main.isLessThan.n2b.out[5]
+13,9,0,main.isLessThan.n2b.out[6]
+14,10,0,main.isLessThan.n2b.out[7]
+15,11,0,main.isLessThan.n2b.out[8]
+16,12,0,main.isLessThan.n2b.in
