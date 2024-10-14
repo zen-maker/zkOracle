@@ -21,7 +21,9 @@ contract Oracle is IOracle {
     address private keeper;
 
     modifier OnlyKeeper() {
-        require(msg.sender == keeper, "Not keeper");
+        if (msg.sender != keeper) {
+            revert NotKeeper();
+        }
         _;
     }
 
@@ -38,12 +40,15 @@ contract Oracle is IOracle {
 
     /// @inheritdoc IOracle
     function request(uint256 number, uint256 deadline) public {
-        require(!isNumberSet(number), "Number already set");
+        if (isNumberSet(number)) {
+            revert NumberAlreadySet();
+        }
+
         Job storage job = jobs[number];
-        require(
-            job.status != Status.CREATED && job.deadline < block.timestamp,
-            "Job in progress"
-        );
+
+        if (job.status == Status.CREATED) {
+            revert JobInProgress();
+        }
 
         job.owner = msg.sender;
         job.number = number;
@@ -70,16 +75,16 @@ contract Oracle is IOracle {
     }
 
     /// @inheritdoc IOracle
-    function receiveResult(bytes calldata data) public returns (bool) {
-        (uint256[24] memory _proof, uint256[2] memory _pubSignals) = abi.decode(
-            data,
-            (uint256[24], uint256[2])
-        );
-
+    function receiveResult(
+        uint256[24] memory _proof,
+        uint256[2] memory _pubSignals
+    ) public returns (bool) {
         uint256 input = _pubSignals[1];
         Job storage job = jobs[input];
 
-        require(job.status == Status.CREATED, "No related job");
+        if (job.status != Status.CREATED) {
+            revert JobNotInProgress();
+        }
 
         bool success = verifier.verifyProof(_proof, _pubSignals);
 
@@ -105,8 +110,12 @@ contract Oracle is IOracle {
     function multiReceiveResult(
         bytes[] calldata data
     ) public returns (bool[] memory multiResults) {
+        multiResults = new bool[](data.length);
         for (uint i = 0; i < data.length; i++) {
-            bool success = receiveResult(data[i]);
+            (uint256[24] memory _proof, uint256[2] memory _pubSignals) = abi
+                .decode(data[i], (uint256[24], uint256[2]));
+
+            bool success = receiveResult(_proof, _pubSignals);
             multiResults[i] = success;
         }
     }

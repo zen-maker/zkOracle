@@ -36,6 +36,19 @@ interface IOracle {
     /// @param number The job id
     event JobCompleted(uint256 indexed number, bool result);
 
+    // use error for gas optimization
+    /// @notice Reverted when the caller is not the keeper
+    error NotKeeper();
+
+    /// @notice Reverted when the number resulst has been set
+    error NumberAlreadySet();
+
+    /// @notice Reverted when requesting an in progress job
+    error JobInProgress();
+
+    /// @notice Reverted when setting an not-in-progress job
+    error JobNotInProgress();
+
     // @notice Return the job template ID.
     function id() external view returns (uint256);
 
@@ -76,9 +89,13 @@ interface IOracle {
     /// @notice Off-chain service submit a job result
     /// @dev By default, anyone can call this function, because the status and storage results can only be changed when the verification is passed.
     // As long as the proof is correct, anyone can change the status and storage results of the job.
-    /// @param data The result data
+    /// @param _proof The proofs
+    /// @param _pubSignals The publick output signals of circuits
     /// @return true if success, otherwise false
-    function receiveResult(bytes calldata data) external returns (bool);
+    function receiveResult(
+        uint256[24] memory _proof,
+        uint256[2] memory _pubSignals
+    ) external returns (bool);
 
     /// @notice Off-chain service batch submit job results
     /// @param data The result datas
