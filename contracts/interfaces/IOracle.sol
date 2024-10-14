@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 import {PlonkVerifier} from "../Verifier.sol";
 
+// TODO: Split the general base interface and special logical interface
 interface IOracle {
     enum Status {
         PLACEHOLDER,
@@ -77,9 +78,8 @@ interface IOracle {
     function checkNumber(uint256 number) external view returns (NumberStatus);
 
     /// @notice User request a new job
-    /// @param number The job id
-    /// @param deadline The job deadline
-    function request(uint256 number, uint256 deadline) external;
+    /// @param data Request data
+    function request(bytes calldata data) external;
 
     /// @notice User delete a owned job.
     /// @param number The job id

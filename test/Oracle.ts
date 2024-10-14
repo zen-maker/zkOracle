@@ -37,8 +37,16 @@ describe("Oracle", function () {
     const ONE_WEEK_IN_SECS = 7 * 24 * 60 * 60;
     const deadline = BigInt((await time.latest()) + ONE_WEEK_IN_SECS);
 
+    const data = encodeAbiParameters(
+      [
+        { type: "uint256", name: "number" },
+        { type: "uint256", name: "deadline" },
+      ],
+      [BigInt(number), deadline]
+    );
+
     // request a job
-    const requestHash = await Oracle.write.request([number, deadline]);
+    const requestHash = await Oracle.write.request([data]);
     await publicClient.waitForTransactionReceipt({ hash: requestHash });
 
     const job = (await Oracle.read.jobs([number])) as any;

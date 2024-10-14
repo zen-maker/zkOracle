@@ -39,7 +39,14 @@ contract Oracle is IOracle {
     }
 
     /// @inheritdoc IOracle
-    function request(uint256 number, uint256 deadline) public {
+    function request(bytes calldata data) public {
+        (uint256 number, uint256 deadline) = abi.decode(
+            data,
+            (uint256, uint256)
+        );
+
+        require(deadline > block.timestamp);
+
         if (isNumberSet(number)) {
             revert NumberAlreadySet();
         }
