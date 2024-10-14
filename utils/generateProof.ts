@@ -12,7 +12,7 @@ const zkey = path.join(__dirname, "../circuits/proving_key.zkey");
 const INPUTS_FILE = "/tmp/inputs";
 const WITNESS_FILE = "/tmp/witness";
 
-const generateWitness = async (inputs) => {
+const generateWitness = async (inputs: { in: number }) => {
   const buffer = fs.readFileSync(wasm);
   const witnessCalculator = await wc(buffer);
   const buff = await witnessCalculator.calculateWTNSBin(inputs, 0);
@@ -28,58 +28,18 @@ const main = async (input: number) => {
 
 export const generateProof = async (input: number) => {
   const { proof, publicSignals } = await main(input);
-  // const wasmPath = path.join(__dirname, "../LessThen100_js/LessThen100.wasm");
-  // const provingKeyPath = path.join(__dirname, "../proving_key.zkey");
-  // const { proof, publicSignals } = await plonk.fullProve(
-  //   { in: input },
-  //   wasmPath,
-  //   provingKeyPath
-  // );
   const calldataBlob = await plonk.exportSolidityCallData(proof, publicSignals);
   const calldata = calldataBlob.split("][");
 
-  // console.log(
-  //   "calldata",
-  //   calldata[0].slice(1).split(",").map(JSON.parse),
-  //   calldata[1]
-  //     .slice(0, calldata[1].length - 1)
-  //     .split(",")
-  //     .map(JSON.parse)
-  // );
-  // const proveRes = await groth16.fullProve(
-  //   { in: input },
-  //   path.join(__dirname, "../LessThen100_js/LessThen100.wasm"),
-  //   path.join(__dirname, "../circuit_final.zkey")
-  // );
-  // console.log("proveRes", proveRes);
-  // const res = await groth16.verify(
-  //   VerificationKey,
-  //   proveRes.publicSignals,
-  //   proveRes.proof
-  // );
-
-  // if (res) {
-  //   const proof = convertCallData(
-  //     await groth16.exportSolidityCallData(
-  //       proveRes.proof,
-  //       proveRes.publicSignals
-  //     )
-  //   );
-
-  //   return {
-  //     proof: proof,
-  //     publicSignals: proveRes.publicSignals,
-  //   };
-  // } else {
-  //   console.error("calculateProof verify faild.");
-  //   return null;
-  // }
   return {
-    proof: calldata[0].slice(1).split(",").map(JSON.parse),
+    proof: calldata[0]
+      .slice(1)
+      .split(",")
+      .map((item) => JSON.parse(item)),
     publicSignals: calldata[1]
       .slice(0, calldata[1].length - 1)
       .split(",")
-      .map(JSON.parse),
+      .map((item) => JSON.parse(item)),
   };
 };
 
