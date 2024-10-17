@@ -13,6 +13,7 @@ interface IOracle {
 
     struct Job {
         address owner;
+        address recipient;
         uint256 number;
         Status status;
         uint256 deadline;
@@ -36,6 +37,16 @@ interface IOracle {
     /// @notice Emitted when a job is completed, whther success or fail
     /// @param number The job id
     event JobCompleted(uint256 indexed number, bool result);
+
+    /// @notice Emitted when a job is completed, whther success or fail
+    /// @param key Job key
+    /// @param recipient Recipient address
+    /// @param result Result data
+    event JobResultSent(
+        uint256 indexed key,
+        address indexed recipient,
+        bytes result
+    );
 
     // use error for gas optimization
     /// @notice Reverted when the caller is not the keeper
@@ -64,6 +75,7 @@ interface IOracle {
         view
         returns (
             address owner,
+            address recipient,
             uint256 number,
             Status status,
             uint256 deadline

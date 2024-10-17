@@ -17,6 +17,8 @@ Users can request tasks on the chain and notify off-chain services to perform co
 
 The off-chain service submit a job result. If the zk-SNARK verification is successful and there is no timeout, update the task status, save the result, and trigger the event.
 
+If the user sets a callback address, the result will be sent to this address.
+
 Off-chain services can submit tasks in batches.
 
 ### setJobToFail

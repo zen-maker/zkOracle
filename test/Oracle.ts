@@ -27,13 +27,29 @@ describe("Oracle", function () {
       Verifier.address,
       owner.account.address,
     ]);
+    const MockOracleCallback = await hre.viem.deployContract(
+      "MockOracleCallback" as never,
+      [Oracle.address]
+    );
 
     const publicClient = await hre.viem.getPublicClient();
 
-    return { Verifier, Oracle, owner, otherAccount, publicClient };
+    return {
+      Verifier,
+      Oracle,
+      MockOracleCallback,
+      owner,
+      otherAccount,
+      publicClient,
+    };
   }
 
-  async function requestAJob(Oracle: any, publicClient: any, number = 101) {
+  async function requestAJob(
+    Oracle: any,
+    publicClient: any,
+    recipient: string,
+    number = 101
+  ) {
     const ONE_WEEK_IN_SECS = 7 * 24 * 60 * 60;
     const deadline = BigInt((await time.latest()) + ONE_WEEK_IN_SECS);
 
@@ -41,8 +57,9 @@ describe("Oracle", function () {
       [
         { type: "uint256", name: "number" },
         { type: "uint256", name: "deadline" },
+        { type: "address", name: "recipient" },
       ],
-      [BigInt(number), deadline]
+      [BigInt(number), deadline, recipient]
     );
 
     // request a job
@@ -51,7 +68,7 @@ describe("Oracle", function () {
 
     const job = (await Oracle.read.jobs([number])) as any;
     // status is created
-    expect(job[2]).to.equal(1);
+    expect(job[3]).to.equal(1);
   }
 
   describe("Deployment", function () {
@@ -67,14 +84,14 @@ describe("Oracle", function () {
   describe("User operate Jobs", function () {
     it("Should request a job correctly", async function () {
       const { publicClient, Oracle } = await loadFixture(deployContracts);
-      await requestAJob(Oracle, publicClient, 1);
+      await requestAJob(Oracle, publicClient, zeroAddress, 1);
     });
 
     it("Should delete a job correctly", async function () {
       const { publicClient, Oracle, owner } = await loadFixture(
         deployContracts
       );
-      await requestAJob(Oracle, publicClient, 1);
+      await requestAJob(Oracle, publicClient, zeroAddress, 1);
 
       expect(((await Oracle.read.jobs([1])) as any)[0]).to.equal(
         getAddress(owner.account.address)
@@ -89,7 +106,7 @@ describe("Oracle", function () {
   describe("Submit result", function () {
     it("Should set true when number is 99", async function () {
       const { publicClient, Oracle } = await loadFixture(deployContracts);
-      await requestAJob(Oracle, publicClient, 99);
+      await requestAJob(Oracle, publicClient, zeroAddress, 99);
 
       const { proof, publicSignals } = await generateProof(99);
 
@@ -103,7 +120,7 @@ describe("Oracle", function () {
 
     it("Should set false when number is 101", async function () {
       const { publicClient, Oracle } = await loadFixture(deployContracts);
-      await requestAJob(Oracle, publicClient, 101);
+      await requestAJob(Oracle, publicClient, zeroAddress, 101);
       const { proof, publicSignals } = await generateProof(101);
 
       const hash = await Oracle.write.receiveResult([proof, publicSignals]);
@@ -116,8 +133,8 @@ describe("Oracle", function () {
 
     it("The batch setting result should be successful", async function () {
       const { publicClient, Oracle } = await loadFixture(deployContracts);
-      await requestAJob(Oracle, publicClient, 1);
-      await requestAJob(Oracle, publicClient, 2);
+      await requestAJob(Oracle, publicClient, zeroAddress, 1);
+      await requestAJob(Oracle, publicClient, zeroAddress, 2);
       const { proof: proof_1, publicSignals: publicSignals_1 } =
         await generateProof(1);
       const { proof: proof_2, publicSignals: publicSignals_2 } =
@@ -145,6 +162,38 @@ describe("Oracle", function () {
 
       expect(await Oracle.read.checkNumber([1])).to.equal(NumberStatus.IS_TRUE);
       expect(await Oracle.read.checkNumber([2])).to.equal(NumberStatus.IS_TRUE);
+    });
+
+    it("Should emit sent event when recipient callback is set", async function () {
+      const { publicClient, Oracle, MockOracleCallback } = await loadFixture(
+        deployContracts
+      );
+      await requestAJob(Oracle, publicClient, MockOracleCallback.address, 10);
+      const { proof, publicSignals } = await generateProof(10);
+
+      const hash = await Oracle.write.receiveResult([proof, publicSignals]);
+      await publicClient.waitForTransactionReceipt({ hash });
+
+      const events = (await Oracle.getEvents.JobResultSent()) as any;
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args.key).to.equal(10n);
+      expect(events[0].args.recipient).to.equal(
+        getAddress(MockOracleCallback.address)
+      );
+    });
+
+    it("Shouldn't emit sent event when recipient callback is not set", async function () {
+      const { publicClient, Oracle, MockOracleCallback } = await loadFixture(
+        deployContracts
+      );
+      await requestAJob(Oracle, publicClient, zeroAddress, 10);
+      const { proof, publicSignals } = await generateProof(10);
+
+      const hash = await Oracle.write.receiveResult([proof, publicSignals]);
+      await publicClient.waitForTransactionReceipt({ hash });
+
+      const events = (await Oracle.getEvents.JobResultSent()) as any;
+      expect(events).to.have.lengthOf(0);
     });
 
     it("The state should not change when the verification proof is wrong", async function () {});

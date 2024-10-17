@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {IOracle} from "./interfaces/IOracle.sol";
+import {IOracleCallback} from "./interfaces/IOracleCallback.sol";
 import {PlonkVerifier} from "./Verifier.sol";
 
 contract Oracle is IOracle {
@@ -40,9 +41,9 @@ contract Oracle is IOracle {
 
     /// @inheritdoc IOracle
     function request(bytes calldata data) public {
-        (uint256 number, uint256 deadline) = abi.decode(
+        (uint256 number, uint256 deadline, address recipient) = abi.decode(
             data,
-            (uint256, uint256)
+            (uint256, uint256, address)
         );
 
         require(deadline > block.timestamp);
@@ -58,6 +59,7 @@ contract Oracle is IOracle {
         }
 
         job.owner = msg.sender;
+        job.recipient = recipient;
         job.number = number;
         job.status = Status.CREATED;
         job.deadline = deadline;
@@ -96,8 +98,12 @@ contract Oracle is IOracle {
         bool success = verifier.verifyProof(_proof, _pubSignals);
 
         if (success && job.deadline >= block.timestamp) {
-            _setResult(input, _pubSignals[0] > 0);
+            bool result = _pubSignals[0] > 0;
+            _setResult(input, result);
             job.status = Status.COMPLETED;
+
+            _sendResult(job.recipient, input, abi.encode(result));
+
             emit JobCompleted(input, true);
             return true;
         }
@@ -137,6 +143,26 @@ contract Oracle is IOracle {
             results[key] = NumberStatus.IS_TRUE;
         } else {
             results[key] = NumberStatus.IS_FALSE;
+        }
+    }
+
+    /// @notice Send result to user callback address. Errors will be caught and events emitted.
+    /// @dev Errors are not reverted, but events are used instead, so that the results can be saved for others to query.
+    function _sendResult(
+        address recipient,
+        uint256 key,
+        bytes memory data
+    ) internal {
+        uint256 size;
+        assembly {
+            size := extcodesize(recipient)
+        }
+        if (size > 0) {
+            try IOracleCallback(recipient).receiveResultCallback(key, data) {
+                emit JobResultSent(key, recipient, data);
+            } catch {
+                //
+            }
         }
     }
 }
